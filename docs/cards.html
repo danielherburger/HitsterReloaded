@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Maker</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+  td input { padding: 6px 8px; border-radius: 8px; }
+  td.y { width: 90px; }
+  td.x { width: 36px; }
+  tr.check td.y input { border-color: var(--accent2); background: #ffc23322; }
+  .tablewrap { max-height: 480px; overflow: auto; border-radius: 12px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .note { font-size: 13px; color: var(--muted); }
+
+  /* ---------- printable sheets ---------- */
+  #sheets { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
+  .sheetbox { text-align: center; }
+  .sheetbox .cap { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .sheet {
+    width: 210mm; height: 297mm; background: #fff; color: #1a1530; zoom: .42;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .grid { display: grid; }
+  .card {
+    width: var(--s); height: var(--s); position: relative; overflow: hidden;
+    outline: .2mm dashed #bbb; outline-offset: -.1mm;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .front {
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 46%, #ffffff10 46.5% 47%, transparent 47.5% 52%, #ffffff10 52.5% 53%, transparent 53.5% 58%, #ffffff10 58.5% 59%, transparent 59.5%),
+      linear-gradient(135deg, #2a1f5c, #120f24 60%, #3a1340);
+  }
+  .front .qr {
+    position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+    width: 62%; aspect-ratio: 1; background: #fff; border-radius: 7%; padding: 3%;
+  }
+  .front .qr svg { width: 100%; height: 100%; display: block; }
+  .front .label {
+    position: absolute; left: 6%; right: 6%; bottom: 5%; text-align: center; color: #fff;
+    font-weight: 800; font-size: calc(var(--s) * .065); line-height: 1.1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .front .dot { position: absolute; top: 6%; left: 50%; width: 8%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: #ff4f8b; }
+  .back {
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 9% 7%; text-align: center;
+  }
+  .back .artist { font-weight: 700; font-size: calc(var(--s) * .075); line-height: 1.15;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .back .year { font-weight: 900; font-size: calc(var(--s) * .27); line-height: 1; letter-spacing: -.02em; }
+  .back .title { font-style: italic; font-size: calc(var(--s) * .07); line-height: 1.15;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .empty { outline: none; }
+
+  @media print {
+    @page { size: A4 portrait; margin: 0; }
+    body { background: #fff; }
+    body > *:not(#printArea) { display: none !important; }
+    #printArea, #sheets { display: block; margin: 0; padding: 0; }
+    .sheetbox .cap { display: none; }
+    .sheet { zoom: 1; break-after: page; page-break-after: always; }
+    .sheetbox:last-child .sheet { break-after: auto; page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="logo">Throw<span>back</span> <span class="muted" style="color:var(--muted);font-weight:600">card maker</span></div>
+  <nav>
+    <a class="btn secondary" href="./">Player</a>
+    <button class="ghost" id="openSettings" aria-label="Settings">⚙</button>
+  </nav>
+</header>
+
+<main class="wrap wide">
+  <p class="error" id="err"></p>
+
+  <section class="panel stack">
+    <h2>1 · Load songs</h2>
+    <div id="loginRow" class="row hidden">
+      <p class="muted" style="flex:3">Log in with Spotify to load a playlist.</p>
+      <button id="loginBtn">Log in with Spotify</button>
+    </div>
+    <div class="row">
+      <input id="plUrl" placeholder="Spotify playlist link, e.g. https://open.spotify.com/playlist/…" style="flex:4">
+      <button id="loadPl">Load playlist</button>
+    </div>
+    <p class="note">Spotify only lets small private apps read playlists <b>you own or collaborate on</b>. If it's someone else's playlist,
+      open it in Spotify → ⋯ → <i>Add to other playlist</i> → <i>New playlist</i>, then use your copy's link.</p>
+    <div class="row">
+      <label style="flex:4; margin:0">…or import a CSV (e.g. from <a href="https://exportify.app" target="_blank" rel="noopener">Exportify</a>):
+        <input type="file" id="csvFile" accept=".csv,text/csv"></label>
+    </div>
+    <p class="muted" id="loadMsg"></p>
+  </section>
+
+  <section class="panel stack">
+    <h2>2 · Check the songs</h2>
+    <p class="note">Spotify gives the release date of the <i>album</i>, so remasters and compilations often show the wrong year.
+      Rows with a yellow year look suspicious — please double-check them. Everything here is editable and saved in this browser.</p>
+    <div class="row">
+      <span class="muted" id="count" style="flex:3"></span>
+      <button class="secondary" id="sortYear">Sort by year</button>
+      <button class="secondary" id="exportCsv">Download CSV</button>
+      <button class="secondary" id="clearAll">Clear list</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Year</th><th>Artist</th><th>Title</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel stack">
+    <h2>3 · Design &amp; print</h2>
+    <div class="opts">
+      <div><label for="frontText">Text on the QR side</label><input id="frontText" placeholder="Happy Birthday, Alex! 🎉" maxlength="40"></div>
+      <div><label for="size">Card size</label>
+        <select id="size"><option value="55">55 mm (15 per page)</option><option value="60" selected>60 mm (12 per page)</option><option value="65">65 mm (12 per page)</option></select></div>
+      <div><label for="flip">Duplex printing flips on</label>
+        <select id="flip"><option value="long" selected>Long edge (normal)</option><option value="short">Short edge</option></select></div>
+      <div><label for="base">Player link in the QR codes</label><input id="base" spellcheck="false"></div>
+    </div>
+    <p class="note">Print double-sided on thick paper (or print fronts and backs separately and glue them together), at 100% scale / “actual size”, then cut along the dashed lines.
+      The QR codes contain only the player link plus a song ID — no title — so nobody can cheat by scanning with a normal camera app.
+      The player link must be where you host the player (it defaults to this site).</p>
+    <div class="row"><button id="printBtn" class="big">🖨 Print cards</button></div>
+  </section>
+</main>
+
+<div id="printArea" class="wrap wide"><div id="sheets"></div></div>
+
+<script src="config.js"></script>
+<script src="js/spotify.js"></script>
+<script src="js/settings.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const err = (m) => { $('err').textContent = m || ''; };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  let songs = store.get('cards_songs', []);
+  const opts = Object.assign({ frontText: '', size: '60', flip: 'long', base: SP.redirectUri() }, store.get('cards_opts', {}));
+
+  // ---------- cleaning helpers ----------
+  const JUNK = /\s*(?:[-–—]\s*|[([])\s*(?:\d{4}\s+)?(?:digital(?:ly)?\s+)?(?:remaster(?:ed)?|single version|radio edit|mono|stereo|bonus track|\d{4} mix)[^)\]]*[)\]]?\s*$/i;
+  function cleanTitle(t) {
+    let s = t || '';
+    for (let i = 0; i < 3; i++) s = s.replace(JUNK, '');
+    return s.trim() || t;
+  }
+  function suspicious(raw, year) {
+    return !/^\d{4}$/.test(String(year)) || /remaster|anniversary|deluxe|greatest|hits|best of|collection|live/i.test(raw || '');
+  }
+  function addSongs(list) {
+    const seen = new Set(songs.map((s) => s.id));
+    let added = 0;
+    for (const s of list) {
+      if (!s.id || seen.has(s.id)) continue;
+      seen.add(s.id);
+      songs.push(s);
+      added++;
+    }
+    save();
+    renderTable();
+    return added;
+  }
+  function makeSong(id, title, artist, date, album) {
+    const year = String(date || '').slice(0, 4);
+    return { id, title: cleanTitle(title), artist, year, check: suspicious(`${title} ${album || ''}`, year) };
+  }
+
+  // ---------- Spotify playlist ----------
+  async function loadPlaylist() {
+    err();
+    const raw = $('plUrl').value.trim();
+    const m = raw.match(/playlist[/:]([A-Za-z0-9]+)/);
+    const id = m ? m[1] : raw;
+    if (!id) return;
+    if (!SP.loggedIn()) { err('Log in with Spotify first.'); return; }
+    $('loadMsg').textContent = 'Loading…';
+    const found = [];
+    try {
+      let next = `/playlists/${id}/items?limit=50`;
+      try { await SP.api(next); } catch (e) { if (e.status === 404) next = `/playlists/${id}/tracks?limit=50`; else throw e; }
+      while (next) {
+        const d = await SP.api(next);
+        for (const e of d.items || []) {
+          const t = e.item || e.track;
+          if (!t || t.type !== 'track' || !t.id || t.is_local) continue;
+          found.push(makeSong(t.id, t.name, (t.artists || []).map((a) => a.name).join(', '),
+            t.album && t.album.release_date, t.album && t.album.name));
+        }
+        next = d.next;
+        $('loadMsg').textContent = `Loading… ${found.length} songs`;
+      }
+    } catch (e) {
+      $('loadMsg').textContent = '';
+      err(e.status === 403
+        ? 'Spotify won’t share this playlist with the app (403). Make your own copy of the playlist (see the note above) and try again.'
+        : 'Could not load playlist: ' + e.message);
+      return;
+    }
+    const added = addSongs(found);
+    $('loadMsg').textContent = `Found ${found.length} songs, added ${added} new.`;
+  }
+
+  // ---------- CSV ----------
+  function parseCsv(text) {
+    const rows = []; let row = []; let f = ''; let q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+        else f += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(f); f = ''; }
+      else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+      else if (c !== '\r') f += c;
+    }
+    if (f || row.length) { row.push(f); rows.push(row); }
+    return rows.filter((r) => r.some((x) => x.trim()));
+  }
+  function importCsv(text) {
+    const rows = parseCsv(text.replace(/^﻿/, ''));
+    if (rows.length < 2) { err('CSV looks empty.'); return; }
+    const h = rows[0].map((x) => x.trim().toLowerCase());
+    const col = (...res) => h.findIndex((x) => res.some((r) => r.test(x)));
+    const ci = { uri: col(/uri/, /^id$/, /link|url/), title: col(/track name/, /^title$/, /^name$/, /song/),
+      artist: col(/artist/), year: col(/^year$/, /release date/, /date/), album: col(/album name/, /^album$/) };
+    if (ci.uri < 0) { err('CSV needs a column with the Spotify track URI/link.'); return; }
+    const list = rows.slice(1).map((r) => {
+      const id = SP.parseTrackId(r[ci.uri]);
+      return id && makeSong(id, r[ci.title] || '', r[ci.artist] || '', r[ci.year] || '', r[ci.album] || '');
+    }).filter(Boolean);
+    list.forEach((s) => { s.artist = s.artist.replace(/\s*;\s*/g, ', '); });
+    const added = addSongs(list);
+    $('loadMsg').textContent = `CSV: ${list.length} songs, added ${added} new.`;
+  }
+  function exportCsv() {
+    const q = (s) => '"' + String(s ?? '').replace(/"/g, '""') + '"';
+    const lines = ['Year,Artist,Title,Track URI', ...songs.map((s) => [s.year, s.artist, s.title, 'spotify:track:' + s.id].map(q).join(','))];
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+    a.download = 'songs.csv';
+    a.click();
+  }
+
+  // ---------- table ----------
+  function save() { store.set('cards_songs', songs); }
+  function renderTable() {
+    $('rows').innerHTML = songs.map((s, i) => `
+      <tr class="${s.check ? 'check' : ''}" data-i="${i}">
+        <td class="y"><input data-f="year" value="${esc(s.year)}" inputmode="numeric" maxlength="4"></td>
+        <td><input data-f="artist" value="${esc(s.artist)}"></td>
+        <td><input data-f="title" value="${esc(s.title)}"></td>
+        <td class="x"><button class="ghost" data-del title="Remove">✕</button></td>
+      </tr>`).join('');
+    const nCheck = songs.filter((s) => s.check).length;
+    $('count').textContent = songs.length ? `${songs.length} songs${nCheck ? ` · ${nCheck} to double-check` : ''}` : 'No songs yet.';
+    renderSheets();
+  }
+  $('rows').addEventListener('input', (e) => {
+    const tr = e.target.closest('tr'); const f = e.target.dataset.f;
+    if (!tr || !f) return;
+    const s = songs[tr.dataset.i];
+    s[f] = e.target.value;
+    if (f === 'year') { s.check = !/^\d{4}$/.test(s.year); tr.classList.toggle('check', s.check); }
+    save();
+    scheduleSheets();
+  });
+  $('rows').addEventListener('change', (e) => {
+    // Leaving a year field that you checked clears the warning.
+    const tr = e.target.closest('tr');
+    if (tr && e.target.dataset.f === 'year' && /^\d{4}$/.test(e.target.value)) {
+      songs[tr.dataset.i].check = false; tr.classList.remove('check'); save();
+      const nCheck = songs.filter((s) => s.check).length;
+      $('count').textContent = `${songs.length} songs${nCheck ? ` · ${nCheck} to double-check` : ''}`;
+    }
+  });
+  $('rows').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-del]')) return;
+    songs.splice(e.target.closest('tr').dataset.i, 1);
+    save(); renderTable();
+  });
+
+  // ---------- cards ----------
+  function qrSvg(text) {
+    const q = qrcode(0, 'M'); q.addData(text); q.make();
+    const n = q.getModuleCount();
+    let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+    return `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><path d="${d}" fill="#120f24"/></svg>`;
+  }
+  function backColor(year) {
+    const y = parseInt(year, 10);
+    if (!y) return '#e5e5e5';
+    const decade = Math.floor(y / 10) * 10;
+    const hue = (((decade - 1950) / 10) * 52 + 330) % 360;
+    return `hsl(${hue} 85% ${y % 10 < 5 ? 74 : 68}%)`;
+  }
+  function cardLink(id) {
+    const base = (opts.base || SP.redirectUri()).replace(/#.*$/, '');
+    return base + '#t=' + id;
+  }
+
+  let sheetTimer = null;
+  function scheduleSheets() { clearTimeout(sheetTimer); sheetTimer = setTimeout(renderSheets, 400); }
+  function renderSheets() {
+    const size = Number(opts.size);
+    const cols = Math.floor(196 / size), rows = Math.floor(283 / size), per = cols * rows;
+    const s = `${size}mm`;
+    const grid = (cells) => `<div class="grid" style="--s:${s};grid-template-columns:repeat(${cols},${s});grid-template-rows:repeat(${rows},${s})">${cells}</div>`;
+    const place = (r, c, html) => `<div style="grid-row:${r + 1};grid-column:${c + 1}">${html}</div>`;
+    let out = '';
+    const pages = Math.ceil(songs.length / per);
+    for (let p = 0; p < pages; p++) {
+      const chunk = songs.slice(p * per, (p + 1) * per);
+      let front = '', back = '';
+      chunk.forEach((song, i) => {
+        const r = Math.floor(i / cols), c = i % cols;
+        front += place(r, c, `<div class="card front"><div class="dot"></div><div class="qr">${qrSvg(cardLink(song.id))}</div>${opts.frontText ? `<div class="label">${esc(opts.frontText)}</div>` : ''}</div>`);
+        // Mirror the position so the back lands behind its front after duplex printing.
+        const br = opts.flip === 'short' ? rows - 1 - r : r;
+        const bc = opts.flip === 'short' ? c : cols - 1 - c;
+        back += place(br, bc, `<div class="card back" style="background:${backColor(song.year)}"><div class="artist">${esc(song.artist)}</div><div class="year">${esc(song.year)}</div><div class="title">${esc(song.title)}</div></div>`);
+      });
+      out += `<div class="sheetbox"><div class="cap">Page ${p * 2 + 1} · QR side</div><div class="sheet">${grid(front)}</div></div>`;
+      out += `<div class="sheetbox"><div class="cap">Page ${p * 2 + 2} · answer side</div><div class="sheet">${grid(back)}</div></div>`;
+    }
+    $('sheets').innerHTML = out;
+  }
+
+  // ---------- options ----------
+  for (const k of ['frontText', 'size', 'flip', 'base']) {
+    $(k).value = opts[k];
+    $(k).addEventListener('input', () => { opts[k] = $(k).value; store.set('cards_opts', opts); scheduleSheets(); });
+  }
+
+  // ---------- wiring ----------
+  $('openSettings').onclick = () => Settings.open();
+  $('loginBtn').onclick = async () => { if (!SP.clientId()) { Settings.open(); return; } try { await SP.login(); } catch (e) { err(e.message); } };
+  $('loadPl').onclick = loadPlaylist;
+  $('plUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPlaylist(); });
+  $('csvFile').onchange = async (e) => { const f = e.target.files[0]; if (f) importCsv(await f.text()); e.target.value = ''; };
+  $('sortYear').onclick = () => { songs.sort((a, b) => (parseInt(a.year, 10) || 9999) - (parseInt(b.year, 10) || 9999)); save(); renderTable(); };
+  $('exportCsv').onclick = exportCsv;
+  $('clearAll').onclick = () => { if (confirm('Remove all songs from the list?')) { songs = []; save(); renderTable(); } };
+  $('printBtn').onclick = () => {
+    if (!songs.length) { err('Add some songs first.'); return; }
+    if (songs.some((s) => !/^\d{4}$/.test(s.year)) && !confirm('Some songs have no valid year. Print anyway?')) return;
+    renderSheets();
+    window.print();
+  };
+
+  (async () => {
+    try { await SP.handleRedirect(); } catch (e) { err(e.message); }
+    $('loginRow').classList.toggle('hidden', SP.loggedIn());
+    renderTable();
+  })();
+})();
+</script>
+</body>
+</html>

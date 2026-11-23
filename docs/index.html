@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Throwback</title>
+<meta name="theme-color" content="#120f24">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="logo">Throw<span>back</span></div>
+  <nav>
+    <a class="btn secondary small" href="cards.html">Make cards</a>
+    <button class="ghost" id="openSettings" aria-label="Settings">⚙</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <p class="error" id="err"></p>
+
+  <!-- Not logged in -->
+  <section id="vLogin" class="hidden stack">
+    <div class="panel stack">
+      <h2>Welcome!</h2>
+      <p>Scan a card, the song plays on Spotify, and nobody sees what it is. Guess the year and put the card in the right spot on your timeline.</p>
+      <p class="muted small">You need Spotify Premium and the Spotify app on this phone.</p>
+      <button class="big" id="loginBtn">Log in with Spotify</button>
+    </div>
+  </section>
+
+  <!-- Ready to scan -->
+  <section id="vReady" class="hidden stack">
+    <div class="record" id="recIdle"></div>
+    <button class="big" id="scanBtn">📷 Scan a card</button>
+    <p class="muted small" style="text-align:center">Tip: open the Spotify app once and play/pause any song so this phone shows up as a speaker.</p>
+  </section>
+
+  <!-- Scanning -->
+  <section id="vScan" class="hidden stack">
+    <div class="scanner"><video id="video" playsinline muted></video><div class="frame"></div></div>
+    <p class="status" id="scanMsg">Point the camera at the QR code</p>
+    <button class="secondary big" id="cancelScan">Cancel</button>
+  </section>
+
+  <!-- Playing -->
+  <section id="vPlay" class="hidden stack">
+    <div class="record spin" id="rec"></div>
+    <p class="status" id="playMsg">Guess the year!</p>
+    <div class="reveal hidden" id="revealBox">
+      <div class="year" id="rYear"></div>
+      <div class="title" id="rTitle"></div>
+      <div class="muted" id="rArtist"></div>
+    </div>
+    <div class="controls">
+      <button class="secondary" id="pauseBtn">⏸ Pause</button>
+      <button class="secondary" id="replayBtn">↺ From start</button>
+      <button class="secondary" id="revealBtn">👀 Reveal</button>
+      <button class="secondary" id="deviceBtn">🔈 Speaker</button>
+      <button class="big full" id="nextBtn">📷 Next card</button>
+    </div>
+  </section>
+</main>
+
+<dialog id="devDlg">
+  <h2>Where should it play?</h2>
+  <div id="devList" class="stack"></div>
+  <p class="small muted" id="devHelp"></p>
+  <div class="row" style="margin-top:12px">
+    <button class="secondary" id="devRefresh">Refresh</button>
+    <button class="ghost" id="devClose">Close</button>
+  </div>
+</dialog>
+
+<script src="config.js"></script>
+<script src="js/spotify.js"></script>
+<script src="js/settings.js"></script>
+<script src="vendor/jsQR.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const views = ['vLogin', 'vReady', 'vScan', 'vPlay'];
+  const show = (v) => views.forEach((x) => $(x).classList.toggle('hidden', x !== v));
+  const err = (m) => { $('err').textContent = m || ''; };
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  let currentId = null;
+  let paused = false;
+  let deviceId = store.get('device_id');
+
+  // ---------- playback ----------
+  async function play(id, fromStart = true) {
+    currentId = id;
+    paused = false;
+    show('vPlay');
+    $('revealBox').classList.add('hidden');
+    $('revealBtn').classList.remove('hidden');
+    $('pauseBtn').textContent = '⏸ Pause';
+    $('rec').classList.add('spin');
+    $('playMsg').textContent = 'Starting…';
+    err();
+    const body = { uris: ['spotify:track:' + id], position_ms: 0 };
+    try {
+      await SP.api('/me/player/play', { method: 'PUT', query: deviceId ? { device_id: deviceId } : undefined, body });
+    } catch (e) {
+      if (e.status === 404 || e.reason === 'NO_ACTIVE_DEVICE') {
+        deviceId = null;
+        const picked = await chooseDevice(true);
+        if (picked) return play(id, fromStart);
+        $('playMsg').textContent = 'No speaker found';
+        $('rec').classList.remove('spin');
+        return;
+      }
+      $('rec').classList.remove('spin');
+      $('playMsg').textContent = 'Could not play';
+      err(e.status === 403 ? 'Spotify refused playback (Premium needed, or your account is not added to the app’s user list).' : e.message);
+      return;
+    }
+    $('playMsg').textContent = 'Guess the year!';
+  }
+
+  async function togglePause() {
+    try {
+      if (paused) {
+        await SP.api('/me/player/play', { method: 'PUT', query: deviceId ? { device_id: deviceId } : undefined });
+        paused = false;
+      } else {
+        await SP.api('/me/player/pause', { method: 'PUT', query: deviceId ? { device_id: deviceId } : undefined });
+        paused = true;
+      }
+      $('pauseBtn').textContent = paused ? '▶ Play' : '⏸ Pause';
+      $('rec').classList.toggle('spin', !paused);
+    } catch (e) { err(e.message); }
+  }
+
+  async function reveal() {
+    try {
+      const t = await SP.api('/tracks/' + currentId);
+      $('rYear').textContent = (t.album && t.album.release_date || '').slice(0, 4);
+      $('rTitle').textContent = t.name;
+      $('rArtist').textContent = t.artists.map((a) => a.name).join(', ');
+      $('revealBox').classList.remove('hidden');
+      $('revealBtn').classList.add('hidden');
+      $('playMsg').textContent = '';
+    } catch (e) { err('Could not load song info: ' + e.message); }
+  }
+
+  // ---------- devices ----------
+  let devResolve = null;
+  async function chooseDevice(auto) {
+    $('devHelp').textContent = '';
+    $('devList').innerHTML = '<p class="muted">Looking for speakers…</p>';
+    if (!$('devDlg').open) $('devDlg').showModal();
+    let devices = [];
+    try { devices = (await SP.api('/me/player/devices')).devices || []; }
+    catch (e) { $('devList').innerHTML = ''; $('devHelp').textContent = e.message; }
+    devices = devices.filter((d) => !d.is_restricted);
+    if (auto && devices.length === 1) {
+      deviceId = devices[0].id; store.set('device_id', deviceId);
+      $('devDlg').close();
+      return true;
+    }
+    $('devList').innerHTML = '';
+    if (!devices.length) {
+      $('devHelp').innerHTML = 'No Spotify speaker found. Open the <b>Spotify app</b> on this phone, play any song for a second, pause it, come back here and tap Refresh.';
+    }
+    for (const d of devices) {
+      const b = document.createElement('button');
+      b.className = d.id === deviceId ? '' : 'secondary';
+      b.style.width = '100%';
+      b.textContent = `${d.name} (${d.type.toLowerCase()})${d.is_active ? ' • active' : ''}`;
+      b.onclick = () => {
+        deviceId = d.id; store.set('device_id', deviceId);
+        $('devDlg').close();
+        if (devResolve) { devResolve(true); devResolve = null; }
+      };
+      $('devList').appendChild(b);
+    }
+    return new Promise((r) => { devResolve = r; });
+  }
+  $('devRefresh').onclick = () => chooseDevice(false);
+  $('devClose').onclick = () => { $('devDlg').close(); if (devResolve) { devResolve(false); devResolve = null; } };
+
+  // ---------- scanner ----------
+  let stream = null;
+  let scanning = false;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  async function startScan() {
+    err();
+    show('vScan');
+    $('scanMsg').textContent = 'Point the camera at the QR code';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    } catch (e) {
+      show('vReady');
+      err('Camera not available: ' + e.message + ' (the page must be opened via https).');
+      return;
+    }
+    const v = $('video');
+    v.srcObject = stream;
+    await v.play().catch(() => {});
+    scanning = true;
+    requestAnimationFrame(tick);
+  }
+
+  function stopScan() {
+    scanning = false;
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    stream = null;
+  }
+
+  function tick() {
+    if (!scanning) return;
+    const v = $('video');
+    if (v.readyState >= 2 && v.videoWidth) {
+      const scale = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight));
+      canvas.width = Math.round(v.videoWidth * scale);
+      canvas.height = Math.round(v.videoHeight * scale);
+      ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) {
+        const id = SP.parseTrackId(code.data);
+        if (id) {
+          stopScan();
+          if (navigator.vibrate) navigator.vibrate(80);
+          play(id);
+          return;
+        }
+        $('scanMsg').textContent = 'That QR code is not a song card';
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- wiring ----------
+  $('openSettings').onclick = () => Settings.open();
+  $('loginBtn').onclick = async () => {
+    if (!SP.clientId()) { Settings.open(); return; }
+    try { await SP.login(); } catch (e) { err(e.message); }
+  };
+  $('scanBtn').onclick = startScan;
+  $('cancelScan').onclick = () => { stopScan(); show('vReady'); };
+  $('pauseBtn').onclick = togglePause;
+  $('replayBtn').onclick = () => currentId && play(currentId);
+  $('revealBtn').onclick = reveal;
+  $('deviceBtn').onclick = () => chooseDevice(false);
+  $('nextBtn').onclick = async () => {
+    if (!paused) SP.api('/me/player/pause', { method: 'PUT', query: deviceId ? { device_id: deviceId } : undefined }).catch(() => {});
+    startScan();
+  };
+
+  (async () => {
+    try { await SP.handleRedirect(); } catch (e) { err(e.message); }
+    if (!SP.loggedIn()) { show('vLogin'); return; }
+    // Card scanned with the normal phone camera: …/#t=TRACKID
+    if (!playFromHash()) show('vReady');
+    window.addEventListener('hashchange', playFromHash);
+  })();
+
+  function playFromHash() {
+    const id = SP.parseTrackId(location.hash);
+    if (!id) return false;
+    history.replaceState(null, '', location.pathname);
+    stopScan();
+    play(id);
+    return true;
+  }
+})();
+</script>
+</body>
+</html>
