@@ -9,14 +9,29 @@
 <style>
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); z-index: 1; }
   td input { padding: 6px 8px; border-radius: 8px; }
   td.y { width: 90px; }
+  td.st { width: 80px; }
   td.x { width: 36px; }
   tr.check td.y input { border-color: var(--accent2); background: #ffc23322; }
+  tr.gone td input { text-decoration: line-through; opacity: .6; }
   .tablewrap { max-height: 480px; overflow: auto; border-radius: 12px; }
   .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-  .note { font-size: 13px; color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); margin: 0; }
+  .badge { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .b-new { background: var(--accent); color: #fff; }
+  .b-printed { color: var(--muted); }
+  .b-gone { background: #ffc23333; color: var(--accent2); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs button { padding: 6px 12px; font-size: 14px; }
+  .tabs button[aria-pressed="false"] { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .choice { display: flex; gap: 8px; flex-wrap: wrap; }
+  .choice label { margin: 0; flex: 1 1 200px; display: flex; gap: 10px; align-items: center; cursor: pointer;
+    background: #0003; border: 1px solid var(--line); border-radius: 12px; padding: 12px; color: var(--text); font-size: 15px; }
+  .choice input { width: auto; }
+  .banner { background: #3ddc9722; border: 1px solid var(--ok); border-radius: 12px; padding: 12px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 
   /* ---------- printable sheets ---------- */
   #sheets { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
@@ -57,7 +72,6 @@
   .back .year { font-weight: 900; font-size: calc(var(--s) * .27); line-height: 1; letter-spacing: -.02em; }
   .back .title { font-style: italic; font-size: calc(var(--s) * .07); line-height: 1.15;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .empty { outline: none; }
 
   @media print {
     @page { size: A4 portrait; margin: 0; }
@@ -72,67 +86,92 @@
 </head>
 <body>
 <header class="bar">
-  <div class="logo">Throw<span>back</span> <span class="muted" style="color:var(--muted);font-weight:600">card maker</span></div>
+  <div class="logo" data-appname></div>
   <nav>
-    <a class="btn secondary" href="./">Player</a>
+    <a class="btn secondary" href="./">▶ Player</a>
     <button class="ghost" id="openSettings" aria-label="Settings">⚙</button>
   </nav>
 </header>
 
 <main class="wrap wide">
+  <h1 style="margin-top:8px">Card maker</h1>
   <p class="error" id="err"></p>
 
+  <!-- 1 · playlist -->
   <section class="panel stack">
-    <h2>1 · Load songs</h2>
+    <h2>1 · Your playlist</h2>
     <div id="loginRow" class="row hidden">
-      <p class="muted" style="flex:3">Log in with Spotify to load a playlist.</p>
+      <p class="muted" style="flex:3;margin:0">Log in with Spotify to load your playlist.</p>
       <button id="loginBtn">Log in with Spotify</button>
     </div>
     <div class="row">
-      <input id="plUrl" placeholder="Spotify playlist link, e.g. https://open.spotify.com/playlist/…" style="flex:4">
-      <button id="loadPl">Load playlist</button>
+      <input id="plUrl" placeholder="Paste a Spotify playlist link: https://open.spotify.com/playlist/…" style="flex:4">
+      <button id="syncBtn">⟳ Update from Spotify</button>
     </div>
-    <p class="note">Spotify only lets small private apps read playlists <b>you own or collaborate on</b>. If it's someone else's playlist,
-      open it in Spotify → ⋯ → <i>Add to other playlist</i> → <i>New playlist</i>, then use your copy's link.</p>
-    <div class="row">
-      <label style="flex:4; margin:0">…or import a CSV (e.g. from <a href="https://exportify.app" target="_blank" rel="noopener">Exportify</a>):
-        <input type="file" id="csvFile" accept=".csv,text/csv"></label>
-    </div>
-    <p class="muted" id="loadMsg"></p>
+    <p class="muted" id="plStatus" style="margin:0"></p>
+    <p class="note">Add or remove songs in Spotify whenever you like, then press <b>Update</b>: new songs show up here as <span class="badge b-new">NEW</span>,
+      and you can print just those. The playlist must be one <b>you own or collaborate on</b>. If it's someone else's,
+      use <i>Add to other playlist → New playlist</i> in Spotify to make your own copy.</p>
+    <details>
+      <summary>Other ways to add songs (CSV import)</summary>
+      <p class="note" style="margin-top:8px">Import a CSV, e.g. from <a href="https://exportify.app" target="_blank" rel="noopener">Exportify</a>, or one you saved with “Download backup”.</p>
+      <input type="file" id="csvFile" accept=".csv,text/csv" style="margin-top:8px">
+    </details>
   </section>
 
+  <!-- 2 · songs -->
   <section class="panel stack">
-    <h2>2 · Check the songs</h2>
+    <h2>2 · Check the years</h2>
     <p class="note">Spotify gives the release date of the <i>album</i>, so remasters and compilations often show the wrong year.
-      Rows with a yellow year look suspicious — please double-check them. Everything here is editable and saved in this browser.</p>
+      Yellow years look suspicious, so please double-check them. You can edit everything, and it's saved automatically in this browser.</p>
     <div class="row">
-      <span class="muted" id="count" style="flex:3"></span>
+      <div class="tabs" id="tabs" style="flex:3"></div>
       <button class="secondary" id="sortYear">Sort by year</button>
-      <button class="secondary" id="exportCsv">Download CSV</button>
-      <button class="secondary" id="clearAll">Clear list</button>
     </div>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Year</th><th>Artist</th><th>Title</th><th></th></tr></thead>
+        <thead><tr><th>Year</th><th>Artist</th><th>Title</th><th></th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
+    <div class="row">
+      <span style="flex:3"></span>
+      <button class="secondary" id="removeGone" hidden>Remove songs no longer in playlist</button>
+      <button class="secondary" id="exportCsv">⬇ Download backup</button>
+      <button class="secondary" id="newSet">Start new card set</button>
+    </div>
   </section>
 
+  <!-- 3 · print -->
   <section class="panel stack">
-    <h2>3 · Design &amp; print</h2>
+    <h2>3 · Print</h2>
+    <div class="choice">
+      <label><input type="radio" name="which" value="new"> <span>Only new cards <b id="nNew"></b></span></label>
+      <label><input type="radio" name="which" value="all"> <span>All cards <b id="nAll"></b></span></label>
+    </div>
     <div class="opts">
       <div><label for="frontText">Text on the QR side</label><input id="frontText" placeholder="Happy Birthday, Alex! 🎉" maxlength="40"></div>
       <div><label for="size">Card size</label>
-        <select id="size"><option value="55">55 mm (15 per page)</option><option value="60" selected>60 mm (12 per page)</option><option value="65">65 mm (12 per page)</option></select></div>
+        <select id="size"><option value="55">55 mm (15 per page)</option><option value="60">60 mm (12 per page)</option><option value="65">65 mm (12 per page)</option></select></div>
       <div><label for="flip">Duplex printing flips on</label>
-        <select id="flip"><option value="long" selected>Long edge (normal)</option><option value="short">Short edge</option></select></div>
-      <div><label for="base">Player link in the QR codes</label><input id="base" spellcheck="false"></div>
+        <select id="flip"><option value="long">Long edge (normal)</option><option value="short">Short edge</option></select></div>
     </div>
-    <p class="note">Print double-sided on thick paper (or print fronts and backs separately and glue them together), at 100% scale / “actual size”, then cut along the dashed lines.
-      The QR codes contain only the player link plus a song ID — no title — so nobody can cheat by scanning with a normal camera app.
-      The player link must be where you host the player (it defaults to this site).</p>
-    <div class="row"><button id="printBtn" class="big">🖨 Print cards</button></div>
+    <p class="note">Print double-sided at <b>100% / actual size</b> on thick paper, then cut along the dashed lines.
+      Can't print double-sided? Print the odd pages, put the stack back in the printer and print the even pages (or glue the two sides together).</p>
+    <button id="printBtn" class="big">🖨 Print cards</button>
+    <div class="banner hidden" id="markBanner">
+      <div class="row">
+        <span style="flex:3">Did the cards print OK? Mark them as printed so they won't be printed again next time.</span>
+        <button id="markPrinted">✓ Mark as printed</button>
+        <button class="ghost" id="markLater">Not now</button>
+      </div>
+    </div>
+    <details>
+      <summary>Advanced</summary>
+      <div style="margin-top:8px"><label for="base">Player link inside the QR codes</label><input id="base" spellcheck="false"></div>
+      <p class="note" style="margin-top:4px">Only change this if you move the player to another address. Cards you've already printed keep pointing to the old one.</p>
+    </details>
+    <h3 style="margin-top:16px">Preview</h3>
   </section>
 </main>
 
@@ -145,15 +184,22 @@
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const err = (m) => { $('err').textContent = m || ''; };
+  const err = (m) => { $('err').textContent = m || ''; if (m) $('err').scrollIntoView({ block: 'center' }); };
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const isYear = (y) => /^\d{4}$/.test(String(y));
 
+  // Song: { id, title, artist, year, check, printed, gone, pl }
   let songs = store.get('cards_songs', []);
-  const opts = Object.assign({ frontText: '', size: '60', flip: 'long', base: SP.redirectUri() }, store.get('cards_opts', {}));
+  const opts = Object.assign({ frontText: '', size: '60', flip: 'long', base: SP.redirectUri(), which: 'new',
+    playlist: '', playlistId: '', playlistName: '', synced: 0 }, store.get('cards_opts', {}));
+  let filter = 'all';
+  let lastPrinted = [];
+
+  function save() { store.set('cards_songs', songs); store.set('cards_opts', opts); }
 
   // ---------- cleaning helpers ----------
   const JUNK = /\s*(?:[-–—]\s*|[([])\s*(?:\d{4}\s+)?(?:digital(?:ly)?\s+)?(?:remaster(?:ed)?|single version|radio edit|mono|stereo|bonus track|\d{4} mix)[^)\]]*[)\]]?\s*$/i;
@@ -162,60 +208,83 @@
     for (let i = 0; i < 3; i++) s = s.replace(JUNK, '');
     return s.trim() || t;
   }
-  function suspicious(raw, year) {
-    return !/^\d{4}$/.test(String(year)) || /remaster|anniversary|deluxe|greatest|hits|best of|collection|live/i.test(raw || '');
-  }
-  function addSongs(list) {
-    const seen = new Set(songs.map((s) => s.id));
-    let added = 0;
-    for (const s of list) {
-      if (!s.id || seen.has(s.id)) continue;
-      seen.add(s.id);
-      songs.push(s);
-      added++;
-    }
-    save();
-    renderTable();
-    return added;
-  }
   function makeSong(id, title, artist, date, album) {
     const year = String(date || '').slice(0, 4);
-    return { id, title: cleanTitle(title), artist, year, check: suspicious(`${title} ${album || ''}`, year) };
+    const check = !isYear(year) || /remaster|anniversary|deluxe|greatest|hits|best of|collection|live/i.test(`${title} ${album || ''}`);
+    return { id, title: cleanTitle(title), artist, year, check, printed: false, gone: false };
+  }
+  function addSongs(list) {
+    const have = new Map(songs.map((s) => [s.id, s]));
+    let added = 0;
+    for (const s of list) {
+      if (!s.id) continue;
+      const old = have.get(s.id);
+      if (old) { old.gone = false; if (s.pl) old.pl = s.pl; continue; }   // keep your edits
+      have.set(s.id, s); songs.push(s); added++;
+    }
+    save(); render();
+    return added;
   }
 
   // ---------- Spotify playlist ----------
-  async function loadPlaylist() {
+  function playlistIdFrom(raw) {
+    const m = String(raw).match(/playlist[/:]([A-Za-z0-9]+)/);
+    return m ? m[1] : (/^[A-Za-z0-9]{10,}$/.test(raw.trim()) ? raw.trim() : '');
+  }
+  async function sync({ quiet = false } = {}) {
     err();
     const raw = $('plUrl').value.trim();
-    const m = raw.match(/playlist[/:]([A-Za-z0-9]+)/);
-    const id = m ? m[1] : raw;
-    if (!id) return;
-    if (!SP.loggedIn()) { err('Log in with Spotify first.'); return; }
-    $('loadMsg').textContent = 'Loading…';
+    const id = playlistIdFrom(raw);
+    if (!id) { if (!quiet) err('Paste a Spotify playlist link first.'); return; }
+    if (!SP.loggedIn()) { if (!quiet) err('Log in with Spotify first.'); return; }
+    if (!quiet && opts.playlistId && opts.playlistId !== id && songs.length &&
+        !confirm('This is a different playlist than before. Add its songs to your current cards?\n\n(To start from scratch, press Cancel and use “Start new card set”.)')) return;
+
+    $('syncBtn').disabled = true;
+    $('plStatus').textContent = 'Updating…';
     const found = [];
+    let name = '';
     try {
+      try { name = (await SP.api(`/playlists/${id}`, { query: { fields: 'name' } })).name || ''; } catch {}
       let next = `/playlists/${id}/items?limit=50`;
-      try { await SP.api(next); } catch (e) { if (e.status === 404) next = `/playlists/${id}/tracks?limit=50`; else throw e; }
       while (next) {
         const d = await SP.api(next);
         for (const e of d.items || []) {
           const t = e.item || e.track;
           if (!t || t.type !== 'track' || !t.id || t.is_local) continue;
-          found.push(makeSong(t.id, t.name, (t.artists || []).map((a) => a.name).join(', '),
-            t.album && t.album.release_date, t.album && t.album.name));
+          const s = makeSong(t.id, t.name, (t.artists || []).map((a) => a.name).join(', '),
+            t.album && t.album.release_date, t.album && t.album.name);
+          s.pl = id;
+          found.push(s);
         }
         next = d.next;
-        $('loadMsg').textContent = `Loading… ${found.length} songs`;
+        $('plStatus').textContent = `Updating… ${found.length} songs`;
       }
     } catch (e) {
-      $('loadMsg').textContent = '';
-      err(e.status === 403
-        ? 'Spotify won’t share this playlist with the app (403). Make your own copy of the playlist (see the note above) and try again.'
+      $('syncBtn').disabled = false;
+      showStatus();
+      err(e.status === 403 || e.status === 404
+        ? 'Spotify won’t share this playlist with the app. It has to be a playlist you own or collaborate on, so make your own copy (see the note below) and try again.'
         : 'Could not load playlist: ' + e.message);
       return;
     }
+    $('syncBtn').disabled = false;
+    const ids = new Set(found.map((s) => s.id));
+    let gone = 0;
+    for (const s of songs) if (s.pl === id) { s.gone = !ids.has(s.id); if (s.gone) gone++; }
     const added = addSongs(found);
-    $('loadMsg').textContent = `Found ${found.length} songs, added ${added} new.`;
+    Object.assign(opts, { playlist: raw, playlistId: id, playlistName: name, synced: Date.now() });
+    save();
+    showStatus(added ? `✨ ${added} new song${added > 1 ? 's' : ''}!` : '✓ Up to date, no new songs.', gone);
+    if (added) { filter = 'new'; render(); }
+  }
+  function showStatus(prefix = '', gone = songs.filter((s) => s.gone).length) {
+    const parts = [];
+    if (prefix) parts.push(prefix);
+    if (opts.playlistName) parts.push(`“${opts.playlistName}”`);
+    if (opts.synced) parts.push('last updated ' + new Date(opts.synced).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }));
+    if (gone) parts.push(`${gone} removed from the playlist`);
+    $('plStatus').textContent = parts.join(' · ');
   }
 
   // ---------- CSV ----------
@@ -235,66 +304,88 @@
     return rows.filter((r) => r.some((x) => x.trim()));
   }
   function importCsv(text) {
+    err();
     const rows = parseCsv(text.replace(/^﻿/, ''));
     if (rows.length < 2) { err('CSV looks empty.'); return; }
     const h = rows[0].map((x) => x.trim().toLowerCase());
     const col = (...res) => h.findIndex((x) => res.some((r) => r.test(x)));
     const ci = { uri: col(/uri/, /^id$/, /link|url/), title: col(/track name/, /^title$/, /^name$/, /song/),
-      artist: col(/artist/), year: col(/^year$/, /release date/, /date/), album: col(/album name/, /^album$/) };
+      artist: col(/artist/), year: col(/^year$/, /release date/, /date/), album: col(/album name/, /^album$/),
+      printed: col(/^printed$/) };
     if (ci.uri < 0) { err('CSV needs a column with the Spotify track URI/link.'); return; }
     const list = rows.slice(1).map((r) => {
       const id = SP.parseTrackId(r[ci.uri]);
-      return id && makeSong(id, r[ci.title] || '', r[ci.artist] || '', r[ci.year] || '', r[ci.album] || '');
+      if (!id) return null;
+      const s = makeSong(id, r[ci.title] || '', (r[ci.artist] || '').replace(/\s*;\s*/g, ', '), r[ci.year] || '', r[ci.album] || '');
+      if (ci.printed >= 0) { s.printed = /^(yes|true|1)$/i.test(r[ci.printed]); s.check = !isYear(s.year); }
+      return s;
     }).filter(Boolean);
-    list.forEach((s) => { s.artist = s.artist.replace(/\s*;\s*/g, ', '); });
     const added = addSongs(list);
-    $('loadMsg').textContent = `CSV: ${list.length} songs, added ${added} new.`;
+    $('plStatus').textContent = `CSV: ${list.length} songs, ${added} new.`;
   }
   function exportCsv() {
     const q = (s) => '"' + String(s ?? '').replace(/"/g, '""') + '"';
-    const lines = ['Year,Artist,Title,Track URI', ...songs.map((s) => [s.year, s.artist, s.title, 'spotify:track:' + s.id].map(q).join(','))];
+    const lines = ['Year,Artist,Title,Track URI,Printed',
+      ...songs.map((s) => [s.year, s.artist, s.title, 'spotify:track:' + s.id, s.printed ? 'yes' : 'no'].map(q).join(','))];
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
-    a.download = 'songs.csv';
+    a.download = 'cards-backup.csv';
     a.click();
   }
 
   // ---------- table ----------
-  function save() { store.set('cards_songs', songs); }
-  function renderTable() {
-    $('rows').innerHTML = songs.map((s, i) => `
-      <tr class="${s.check ? 'check' : ''}" data-i="${i}">
-        <td class="y"><input data-f="year" value="${esc(s.year)}" inputmode="numeric" maxlength="4"></td>
-        <td><input data-f="artist" value="${esc(s.artist)}"></td>
-        <td><input data-f="title" value="${esc(s.title)}"></td>
-        <td class="x"><button class="ghost" data-del title="Remove">✕</button></td>
-      </tr>`).join('');
-    const nCheck = songs.filter((s) => s.check).length;
-    $('count').textContent = songs.length ? `${songs.length} songs${nCheck ? ` · ${nCheck} to double-check` : ''}` : 'No songs yet.';
+  const FILTERS = {
+    all: ['All', () => true],
+    new: ['New', (s) => !s.printed && !s.gone],
+    check: ['Check year', (s) => s.check],
+    printed: ['Printed', (s) => s.printed],
+    gone: ['Removed', (s) => s.gone],
+  };
+  function render() {
+    // tabs
+    $('tabs').innerHTML = Object.entries(FILTERS).map(([k, [label, fn]]) => {
+      const n = songs.filter(fn).length;
+      if (!n && k !== 'all' && k !== filter) return '';
+      return `<button data-f="${k}" aria-pressed="${k === filter}">${label} ${n}</button>`;
+    }).join('');
+    // rows
+    const fn = FILTERS[filter][1];
+    $('rows').innerHTML = songs.map((s, i) => !fn(s) ? '' : `
+      <tr class="${s.check ? 'check' : ''} ${s.gone ? 'gone' : ''}" data-i="${i}">
+        <td class="y"><input data-f="year" value="${esc(s.year)}" inputmode="numeric" maxlength="4" aria-label="Year"></td>
+        <td><input data-f="artist" value="${esc(s.artist)}" aria-label="Artist"></td>
+        <td><input data-f="title" value="${esc(s.title)}" aria-label="Title"></td>
+        <td class="st">${s.gone ? '<span class="badge b-gone">removed</span>' : s.printed ? '<span class="badge b-printed">printed</span>' : '<span class="badge b-new">NEW</span>'}</td>
+        <td class="x"><button class="ghost" data-del title="Delete">✕</button></td>
+      </tr>`).join('') || `<tr><td colspan="5" class="muted" style="padding:16px">${songs.length ? 'Nothing here.' : 'No songs yet. Paste your playlist link above and press Update.'}</td></tr>`;
+    $('removeGone').hidden = !songs.some((s) => s.gone);
+    // print choice
+    const nNew = songs.filter(FILTERS.new[1]).length, nAll = songs.filter((s) => !s.gone).length;
+    $('nNew').textContent = `(${nNew})`;
+    $('nAll').textContent = `(${nAll})`;
+    if (!songs.some((s) => s.printed)) opts.which = 'all';
+    document.querySelectorAll('input[name=which]').forEach((r) => { r.checked = r.value === opts.which; });
     renderSheets();
   }
+  $('tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { filter = b.dataset.f; render(); } });
   $('rows').addEventListener('input', (e) => {
     const tr = e.target.closest('tr'); const f = e.target.dataset.f;
     if (!tr || !f) return;
-    const s = songs[tr.dataset.i];
-    s[f] = e.target.value;
-    if (f === 'year') { s.check = !/^\d{4}$/.test(s.year); tr.classList.toggle('check', s.check); }
-    save();
-    scheduleSheets();
+    songs[tr.dataset.i][f] = e.target.value;
+    save(); scheduleSheets();
   });
   $('rows').addEventListener('change', (e) => {
-    // Leaving a year field that you checked clears the warning.
     const tr = e.target.closest('tr');
-    if (tr && e.target.dataset.f === 'year' && /^\d{4}$/.test(e.target.value)) {
-      songs[tr.dataset.i].check = false; tr.classList.remove('check'); save();
-      const nCheck = songs.filter((s) => s.check).length;
-      $('count').textContent = `${songs.length} songs${nCheck ? ` · ${nCheck} to double-check` : ''}`;
+    if (tr && e.target.dataset.f === 'year') {
+      const s = songs[tr.dataset.i];
+      s.check = !isYear(s.year);   // you looked at it → no longer suspicious
+      tr.classList.toggle('check', s.check); save();
     }
   });
   $('rows').addEventListener('click', (e) => {
     if (!e.target.closest('[data-del]')) return;
     songs.splice(e.target.closest('tr').dataset.i, 1);
-    save(); renderTable();
+    save(); render();
   });
 
   // ---------- cards ----------
@@ -308,32 +399,29 @@
   function backColor(year) {
     const y = parseInt(year, 10);
     if (!y) return '#e5e5e5';
-    const decade = Math.floor(y / 10) * 10;
-    const hue = (((decade - 1950) / 10) * 52 + 330) % 360;
+    const hue = (((Math.floor(y / 10) * 10 - 1950) / 10) * 52 + 330) % 360;
     return `hsl(${hue} 85% ${y % 10 < 5 ? 74 : 68}%)`;
   }
-  function cardLink(id) {
-    const base = (opts.base || SP.redirectUri()).replace(/#.*$/, '');
-    return base + '#t=' + id;
-  }
+  const cardLink = (id) => (opts.base || SP.redirectUri()).replace(/#.*$/, '') + '#t=' + id;
+  const toPrint = () => songs.filter(opts.which === 'new' ? FILTERS.new[1] : (s) => !s.gone);
 
   let sheetTimer = null;
   function scheduleSheets() { clearTimeout(sheetTimer); sheetTimer = setTimeout(renderSheets, 400); }
   function renderSheets() {
+    const list = toPrint();
     const size = Number(opts.size);
     const cols = Math.floor(196 / size), rows = Math.floor(283 / size), per = cols * rows;
     const s = `${size}mm`;
     const grid = (cells) => `<div class="grid" style="--s:${s};grid-template-columns:repeat(${cols},${s});grid-template-rows:repeat(${rows},${s})">${cells}</div>`;
     const place = (r, c, html) => `<div style="grid-row:${r + 1};grid-column:${c + 1}">${html}</div>`;
     let out = '';
-    const pages = Math.ceil(songs.length / per);
+    const pages = Math.ceil(list.length / per);
     for (let p = 0; p < pages; p++) {
-      const chunk = songs.slice(p * per, (p + 1) * per);
       let front = '', back = '';
-      chunk.forEach((song, i) => {
+      list.slice(p * per, (p + 1) * per).forEach((song, i) => {
         const r = Math.floor(i / cols), c = i % cols;
         front += place(r, c, `<div class="card front"><div class="dot"></div><div class="qr">${qrSvg(cardLink(song.id))}</div>${opts.frontText ? `<div class="label">${esc(opts.frontText)}</div>` : ''}</div>`);
-        // Mirror the position so the back lands behind its front after duplex printing.
+        // Mirror the position so each back lands behind its front after duplex printing.
         const br = opts.flip === 'short' ? rows - 1 - r : r;
         const bc = opts.flip === 'short' ? c : cols - 1 - c;
         back += place(br, bc, `<div class="card back" style="background:${backColor(song.year)}"><div class="artist">${esc(song.artist)}</div><div class="year">${esc(song.year)}</div><div class="title">${esc(song.title)}</div></div>`);
@@ -341,35 +429,54 @@
       out += `<div class="sheetbox"><div class="cap">Page ${p * 2 + 1} · QR side</div><div class="sheet">${grid(front)}</div></div>`;
       out += `<div class="sheetbox"><div class="cap">Page ${p * 2 + 2} · answer side</div><div class="sheet">${grid(back)}</div></div>`;
     }
-    $('sheets').innerHTML = out;
+    $('sheets').innerHTML = out || '<p class="muted">Nothing to print.</p>';
   }
 
   // ---------- options ----------
   for (const k of ['frontText', 'size', 'flip', 'base']) {
     $(k).value = opts[k];
-    $(k).addEventListener('input', () => { opts[k] = $(k).value; store.set('cards_opts', opts); scheduleSheets(); });
+    $(k).addEventListener('input', () => { opts[k] = $(k).value; save(); scheduleSheets(); });
   }
+  document.querySelectorAll('input[name=which]').forEach((r) => r.addEventListener('change', () => { opts.which = r.value; save(); renderSheets(); }));
 
   // ---------- wiring ----------
   $('openSettings').onclick = () => Settings.open();
-  $('loginBtn').onclick = async () => { if (!SP.clientId()) { Settings.open(); return; } try { await SP.login(); } catch (e) { err(e.message); } };
-  $('loadPl').onclick = loadPlaylist;
-  $('plUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPlaylist(); });
+  $('loginBtn').onclick = () => SP.login().catch((e) => err(e.message));
+  $('syncBtn').onclick = () => sync();
+  $('plUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') sync(); });
   $('csvFile').onchange = async (e) => { const f = e.target.files[0]; if (f) importCsv(await f.text()); e.target.value = ''; };
-  $('sortYear').onclick = () => { songs.sort((a, b) => (parseInt(a.year, 10) || 9999) - (parseInt(b.year, 10) || 9999)); save(); renderTable(); };
+  $('sortYear').onclick = () => { songs.sort((a, b) => (parseInt(a.year, 10) || 9999) - (parseInt(b.year, 10) || 9999)); save(); render(); };
   $('exportCsv').onclick = exportCsv;
-  $('clearAll').onclick = () => { if (confirm('Remove all songs from the list?')) { songs = []; save(); renderTable(); } };
+  $('removeGone').onclick = () => { songs = songs.filter((s) => !s.gone); save(); render(); showStatus(); };
+  $('newSet').onclick = () => {
+    if (!confirm('Start a new card set?\n\nThis clears the song list (tip: “Download backup” first). Your settings and playlist link stay.')) return;
+    songs = []; opts.playlistId = ''; opts.synced = 0; opts.which = 'all'; filter = 'all';
+    save(); render(); showStatus();
+  };
   $('printBtn').onclick = () => {
-    if (!songs.length) { err('Add some songs first.'); return; }
-    if (songs.some((s) => !/^\d{4}$/.test(s.year)) && !confirm('Some songs have no valid year. Print anyway?')) return;
+    err();
+    lastPrinted = toPrint();
+    if (!lastPrinted.length) { err(opts.which === 'new' ? 'No new cards to print. Choose “All cards” to reprint everything.' : 'Add some songs first.'); return; }
+    if (lastPrinted.some((s) => !isYear(s.year)) && !confirm('Some songs have no valid year. Print anyway?')) return;
     renderSheets();
     window.print();
+    if (lastPrinted.some((s) => !s.printed)) $('markBanner').classList.remove('hidden');
   };
+  $('markPrinted').onclick = () => {
+    lastPrinted.forEach((s) => { s.printed = true; });
+    $('markBanner').classList.add('hidden');
+    opts.which = 'new'; filter = 'all';
+    save(); render();
+  };
+  $('markLater').onclick = () => $('markBanner').classList.add('hidden');
 
   (async () => {
     try { await SP.handleRedirect(); } catch (e) { err(e.message); }
     $('loginRow').classList.toggle('hidden', SP.loggedIn());
-    renderTable();
+    $('plUrl').value = opts.playlist;
+    render();
+    showStatus();
+    if (opts.playlistId && SP.loggedIn()) sync({ quiet: true });   // check for new songs automatically
   })();
 })();
 </script>

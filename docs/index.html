@@ -15,10 +15,9 @@
 </head>
 <body>
 <header class="bar">
-  <div class="logo">Throw<span>back</span></div>
+  <div class="logo" data-appname></div>
   <nav>
-    <a class="btn secondary small" href="cards.html">Make cards</a>
-    <button class="ghost" id="openSettings" aria-label="Settings">⚙</button>
+    <button class="ghost" id="openSettings" aria-label="Settings and card maker">⚙</button>
   </nav>
 </header>
 
@@ -28,7 +27,7 @@
   <!-- Not logged in -->
   <section id="vLogin" class="hidden stack">
     <div class="panel stack">
-      <h2>Welcome!</h2>
+      <h2>Welcome! 🎉</h2>
       <p>Scan a card, the song plays on Spotify, and nobody sees what it is. Guess the year and put the card in the right spot on your timeline.</p>
       <p class="muted small">You need Spotify Premium and the Spotify app on this phone.</p>
       <button class="big" id="loginBtn">Log in with Spotify</button>
@@ -39,7 +38,7 @@
   <section id="vReady" class="hidden stack">
     <div class="record" id="recIdle"></div>
     <button class="big" id="scanBtn">📷 Scan a card</button>
-    <p class="muted small" style="text-align:center">Tip: open the Spotify app once and play/pause any song so this phone shows up as a speaker.</p>
+    <p class="muted small" style="text-align:center">Before the first card: open the Spotify app, play any song for a second and pause it, so this phone shows up as a speaker.</p>
   </section>
 
   <!-- Scanning -->
