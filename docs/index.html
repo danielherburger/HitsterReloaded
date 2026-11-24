@@ -1,23 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Throwback</title>
-<meta name="theme-color" content="#120f24">
+<title>Hitster Reloaded</title>
+<meta name="theme-color" content="#0e0e12">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,600;0,700;0,800;0,900;1,600&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="bar">
   <div class="logo" data-appname></div>
   <nav>
-    <button class="ghost" id="openSettings" aria-label="Settings and card maker">⚙</button>
+    <button class="icon" id="openSettings" aria-label="Einstellungen und Karten-Maker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
   </nav>
 </header>
 
@@ -26,54 +29,57 @@
 
   <!-- Not logged in -->
   <section id="vLogin" class="hidden stack">
-    <div class="panel stack">
-      <h2>Welcome! 🎉</h2>
-      <p>Scan a card, the song plays on Spotify, and nobody sees what it is. Guess the year and put the card in the right spot on your timeline.</p>
-      <p class="muted small">You need Spotify Premium and the Spotify app on this phone.</p>
-      <button class="big" id="loginBtn">Log in with Spotify</button>
+    <div class="hero">
+      <h1 data-appname="big"></h1>
+      <span class="pill" data-edition></span>
+      <p class="tag" data-tagline></p>
     </div>
+    <div class="record" aria-hidden="true"></div>
+    <p class="muted">Karte scannen, der Song läuft auf Spotify, und niemand sieht, welcher es ist. Jahr raten und die Karte an die richtige Stelle der Zeitleiste legen.</p>
+    <button class="big" id="loginBtn">Mit Spotify anmelden</button>
+    <p class="muted small center">Du brauchst Spotify Premium und die Spotify-App auf diesem Handy.</p>
   </section>
 
   <!-- Ready to scan -->
   <section id="vReady" class="hidden stack">
-    <div class="record" id="recIdle"></div>
-    <button class="big" id="scanBtn">📷 Scan a card</button>
-    <p class="muted small" style="text-align:center">Before the first card: open the Spotify app, play any song for a second and pause it, so this phone shows up as a speaker.</p>
+    <div class="record" id="recIdle" aria-hidden="true"></div>
+    <button class="big" id="scanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="10" height="10" rx="1"></rect></svg> Karte scannen</button>
+    <p class="muted small center">Vor der ersten Karte: Spotify-App öffnen, kurz einen Song abspielen und pausieren. Dann taucht dieses Handy als Lautsprecher auf.</p>
   </section>
 
   <!-- Scanning -->
   <section id="vScan" class="hidden stack">
     <div class="scanner"><video id="video" playsinline muted></video><div class="frame"></div></div>
-    <p class="status" id="scanMsg">Point the camera at the QR code</p>
-    <button class="secondary big" id="cancelScan">Cancel</button>
+    <p class="status" id="scanMsg">Kamera auf den QR-Code halten</p>
+    <div class="center"><button class="secondary small" id="cancelScan">Abbrechen</button></div>
   </section>
 
   <!-- Playing -->
   <section id="vPlay" class="hidden stack">
-    <div class="record spin" id="rec"></div>
-    <p class="status" id="playMsg">Guess the year!</p>
+    <div class="record spin" id="rec" aria-hidden="true"></div>
+    <p class="status" id="playMsg">Welches Jahr?</p>
     <div class="reveal hidden" id="revealBox">
       <div class="year" id="rYear"></div>
       <div class="title" id="rTitle"></div>
-      <div class="muted" id="rArtist"></div>
+      <div class="artist" id="rArtist"></div>
     </div>
     <div class="controls">
-      <button class="secondary" id="pauseBtn">⏸ Pause</button>
-      <button class="secondary" id="replayBtn">↺ From start</button>
-      <button class="secondary" id="revealBtn">👀 Reveal</button>
-      <button class="secondary" id="deviceBtn">🔈 Speaker</button>
-      <button class="big full" id="nextBtn">📷 Next card</button>
+      <button class="secondary small" id="pauseBtn">Pause</button>
+      <button class="secondary small" id="replayBtn">Von vorn</button>
+      <button class="secondary small" id="deviceBtn">Lautsprecher</button>
     </div>
+    <button class="big secondary" id="revealBtn">Auflösen</button>
+    <button class="big" id="nextBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="10" height="10" rx="1"></rect></svg> Nächste Karte</button>
   </section>
 </main>
 
 <dialog id="devDlg">
-  <h2>Where should it play?</h2>
+  <h2>Wo soll die Musik laufen?</h2>
   <div id="devList" class="stack"></div>
   <p class="small muted" id="devHelp"></p>
-  <div class="row" style="margin-top:12px">
-    <button class="secondary" id="devRefresh">Refresh</button>
-    <button class="ghost" id="devClose">Close</button>
+  <div class="row" style="margin-top:16px">
+    <button class="secondary small" id="devRefresh">Neu suchen</button>
+    <button class="ghost small" id="devClose">Schließen</button>
   </div>
 </dialog>
 
@@ -85,7 +91,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const views = ['vLogin', 'vReady', 'vScan', 'vPlay'];
-  const show = (v) => views.forEach((x) => $(x).classList.toggle('hidden', x !== v));
+  const show = (v) => { document.body.dataset.view = v; views.forEach((x) => $(x).classList.toggle('hidden', x !== v)); };
   const err = (m) => { $('err').textContent = m || ''; };
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -103,9 +109,9 @@
     show('vPlay');
     $('revealBox').classList.add('hidden');
     $('revealBtn').classList.remove('hidden');
-    $('pauseBtn').textContent = '⏸ Pause';
+    $('pauseBtn').textContent = 'Pause';
     $('rec').classList.add('spin');
-    $('playMsg').textContent = 'Starting…';
+    $('playMsg').textContent = 'Startet …';
     err();
     const body = { uris: ['spotify:track:' + id], position_ms: 0 };
     try {
@@ -115,16 +121,16 @@
         deviceId = null;
         const picked = await chooseDevice(true);
         if (picked) return play(id, fromStart);
-        $('playMsg').textContent = 'No speaker found';
+        $('playMsg').textContent = 'Kein Lautsprecher gefunden';
         $('rec').classList.remove('spin');
         return;
       }
       $('rec').classList.remove('spin');
-      $('playMsg').textContent = 'Could not play';
-      err(e.status === 403 ? 'Spotify refused playback (Premium needed, or your account is not added to the app’s user list).' : e.message);
+      $('playMsg').textContent = 'Abspielen ging nicht';
+      err(e.status === 403 ? 'Spotify hat das Abspielen abgelehnt (Premium nötig, oder dein Konto steht nicht in der Nutzerliste der App).' : e.message);
       return;
     }
-    $('playMsg').textContent = 'Guess the year!';
+    $('playMsg').textContent = 'Welches Jahr?';
   }
 
   async function togglePause() {
@@ -136,7 +142,7 @@
         await SP.api('/me/player/pause', { method: 'PUT', query: deviceId ? { device_id: deviceId } : undefined });
         paused = true;
       }
-      $('pauseBtn').textContent = paused ? '▶ Play' : '⏸ Pause';
+      $('pauseBtn').textContent = paused ? 'Weiter' : 'Pause';
       $('rec').classList.toggle('spin', !paused);
     } catch (e) { err(e.message); }
   }
@@ -150,14 +156,14 @@
       $('revealBox').classList.remove('hidden');
       $('revealBtn').classList.add('hidden');
       $('playMsg').textContent = '';
-    } catch (e) { err('Could not load song info: ' + e.message); }
+    } catch (e) { err('Song-Infos konnten nicht geladen werden: ' + e.message); }
   }
 
   // ---------- devices ----------
   let devResolve = null;
   async function chooseDevice(auto) {
     $('devHelp').textContent = '';
-    $('devList').innerHTML = '<p class="muted">Looking for speakers…</p>';
+    $('devList').innerHTML = '<p class="muted">Suche Lautsprecher …</p>';
     if (!$('devDlg').open) $('devDlg').showModal();
     let devices = [];
     try { devices = (await SP.api('/me/player/devices')).devices || []; }
@@ -170,13 +176,13 @@
     }
     $('devList').innerHTML = '';
     if (!devices.length) {
-      $('devHelp').innerHTML = 'No Spotify speaker found. Open the <b>Spotify app</b> on this phone, play any song for a second, pause it, come back here and tap Refresh.';
+      $('devHelp').innerHTML = 'Kein Spotify-Lautsprecher gefunden. Öffne die <b>Spotify-App</b> auf diesem Handy, spiel kurz einen Song, pausiere ihn, komm zurück und tippe auf „Neu suchen“.';
     }
     for (const d of devices) {
       const b = document.createElement('button');
       b.className = d.id === deviceId ? '' : 'secondary';
       b.style.width = '100%';
-      b.textContent = `${d.name} (${d.type.toLowerCase()})${d.is_active ? ' • active' : ''}`;
+      b.textContent = `${d.name} (${d.type.toLowerCase()})${d.is_active ? ' · aktiv' : ''}`;
       b.onclick = () => {
         deviceId = d.id; store.set('device_id', deviceId);
         $('devDlg').close();
@@ -198,12 +204,12 @@
   async function startScan() {
     err();
     show('vScan');
-    $('scanMsg').textContent = 'Point the camera at the QR code';
+    $('scanMsg').textContent = 'Kamera auf den QR-Code halten';
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
     } catch (e) {
       show('vReady');
-      err('Camera not available: ' + e.message + ' (the page must be opened via https).');
+      err('Kamera nicht verfügbar: ' + e.message + ' (die Seite muss über https geöffnet sein).');
       return;
     }
     const v = $('video');
@@ -237,7 +243,7 @@
           play(id);
           return;
         }
-        $('scanMsg').textContent = 'That QR code is not a song card';
+        $('scanMsg').textContent = 'Das ist keine Songkarte';
       }
     }
     requestAnimationFrame(tick);

@@ -31,7 +31,7 @@
   }
 
   async function login() {
-    if (!clientId()) throw new Error('Set your Spotify Client ID first (⚙ settings).');
+    if (!clientId()) throw new Error('Set your Spotify Client ID first (Settings).');
     const verifier = b64url(crypto.getRandomValues(new Uint8Array(64)));
     const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
     sessionStorage.setItem('sp_verifier', verifier);

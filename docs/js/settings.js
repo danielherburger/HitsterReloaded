@@ -1,31 +1,51 @@
-// Shared bits for every page: app name and the ⚙ settings dialog.
+// Shared bits for every page: app name, edition texts and the settings dialog.
 (function () {
-  const name = (window.APP_CONFIG && window.APP_CONFIG.appName) || 'Throwback';
-  document.querySelectorAll('[data-appname]').forEach((el) => { el.textContent = name; });
-  document.title = document.title === 'Card Maker' ? `${name} · Card maker` : name;
+  const cfg = window.APP_CONFIG || {};
+  const name = cfg.appName || 'Hitster Reloaded';
 
-  const configured = !!(window.APP_CONFIG && window.APP_CONFIG.clientId);
+  // Name with the last word in pink, e.g. "Hitster <span>Reloaded</span>".
+  // data-appname="big" puts the last word on its own line.
+  document.querySelectorAll('[data-appname]').forEach((el) => {
+    const words = name.trim().split(/\s+/);
+    const last = words.length > 1 ? words.pop() : '';
+    el.textContent = words.join(' ');
+    if (last) {
+      el.appendChild(el.dataset.appname === 'big' ? document.createElement('br') : document.createTextNode(' '));
+      const span = document.createElement('span');
+      span.textContent = last;
+      el.appendChild(span);
+    }
+  });
+  const fill = (sel, text) => document.querySelectorAll(sel).forEach((el) => {
+    el.textContent = text || '';
+    el.hidden = !text;
+  });
+  fill('[data-edition]', cfg.edition);
+  fill('[data-tagline]', cfg.tagline);
+  document.title = document.title === 'Card Maker' ? `${name} · Karten-Maker` : name;
+
+  const configured = !!cfg.clientId;
   const dlg = document.createElement('dialog');
   dlg.innerHTML = `
-    <h2>Settings</h2>
+    <h2>Einstellungen</h2>
     <div class="stack">
       <p id="loginState" style="margin:0"></p>
       <div class="row">
-        <button id="loginNow">Log in with Spotify</button>
-        <button class="secondary" id="logout">Log out</button>
+        <button class="small" id="loginNow">Mit Spotify anmelden</button>
+        <button class="secondary small" id="logout">Abmelden</button>
       </div>
-      <a class="btn secondary" href="cards.html" style="width:100%">🃏 Card maker (add songs, print cards)</a>
+      <a class="btn secondary small" href="cards.html" style="width:100%">Karten-Maker öffnen</a>
       <details ${configured ? '' : 'open'}>
-        <summary class="small muted">Spotify app setup</summary>
+        <summary>Spotify-App einrichten</summary>
         <div class="stack" style="margin-top:8px">
           <div>
             <label for="cid">Spotify Client ID</label>
-            <input id="cid" autocomplete="off" spellcheck="false" placeholder="32 characters from the Spotify dashboard">
+            <input id="cid" autocomplete="off" spellcheck="false" placeholder="32 Zeichen aus dem Spotify-Dashboard">
           </div>
-          <p class="small muted" style="margin:0">Redirect URI to enter in the Spotify dashboard:<br><code id="ruri"></code></p>
+          <p class="small muted" style="margin:0">Redirect URI für das Spotify-Dashboard:<br><code id="ruri"></code></p>
         </div>
       </details>
-      <div class="row"><button class="ghost" id="closeDlg">Close</button></div>
+      <div class="row" style="justify-content:flex-end"><button class="ghost small" id="closeDlg" style="flex:0 0 auto">Schließen</button></div>
     </div>`;
   document.body.appendChild(dlg);
   const $ = (s) => dlg.querySelector(s);
@@ -33,7 +53,7 @@
   function open() {
     $('#cid').value = SP.clientId();
     $('#ruri').textContent = SP.redirectUri();
-    $('#loginState').textContent = SP.loggedIn() ? '✅ Logged in to Spotify.' : 'Not logged in to Spotify.';
+    $('#loginState').textContent = SP.loggedIn() ? 'Bei Spotify angemeldet.' : 'Nicht bei Spotify angemeldet.';
     $('#loginNow').hidden = SP.loggedIn();
     $('#logout').hidden = !SP.loggedIn();
     dlg.showModal();

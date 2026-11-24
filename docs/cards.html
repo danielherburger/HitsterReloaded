@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Card Maker</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,600;0,700;0,800;0,900;1,600&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <style>
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -14,23 +17,23 @@
   td.y { width: 90px; }
   td.st { width: 80px; }
   td.x { width: 36px; }
-  tr.check td.y input { border-color: var(--accent2); background: #ffc23322; }
+  tr.check td.y input { border-color: var(--accent2); background: #facc1522; }
   tr.gone td input { text-decoration: line-through; opacity: .6; }
   .tablewrap { max-height: 480px; overflow: auto; border-radius: 12px; }
   .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
   .note { font-size: 13px; color: var(--muted); margin: 0; }
   .badge { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
-  .b-new { background: var(--accent); color: #fff; }
+  .b-new { background: var(--accent); color: #0e0e12; }
   .b-printed { color: var(--muted); }
-  .b-gone { background: #ffc23333; color: var(--accent2); }
+  .b-gone { background: #facc1533; color: var(--accent2); }
   .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-  .tabs button { padding: 6px 12px; font-size: 14px; }
+  .tabs button { padding: 6px 12px; font-size: 14px; min-height: 36px; }
   .tabs button[aria-pressed="false"] { background: transparent; color: var(--muted); border: 1px solid var(--line); }
   .choice { display: flex; gap: 8px; flex-wrap: wrap; }
   .choice label { margin: 0; flex: 1 1 200px; display: flex; gap: 10px; align-items: center; cursor: pointer;
     background: #0003; border: 1px solid var(--line); border-radius: 12px; padding: 12px; color: var(--text); font-size: 15px; }
   .choice input { width: auto; }
-  .banner { background: #3ddc9722; border: 1px solid var(--ok); border-radius: 12px; padding: 12px; }
+  .banner { background: #34d39922; border: 1px solid var(--ok); border-radius: 12px; padding: 12px; }
   details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 
   /* ---------- printable sheets ---------- */
@@ -49,21 +52,24 @@
   }
   .front {
     background:
-      radial-gradient(circle at 50% 50%, transparent 0 46%, #ffffff10 46.5% 47%, transparent 47.5% 52%, #ffffff10 52.5% 53%, transparent 53.5% 58%, #ffffff10 58.5% 59%, transparent 59.5%),
-      linear-gradient(135deg, #2a1f5c, #120f24 60%, #3a1340);
+      radial-gradient(circle at 50% 50%, transparent 0 52.4%, #facc15 52.6% 53.6%, transparent 53.8%),
+      radial-gradient(circle at 50% 50%, transparent 0 59.3%, #22d3ee 59.5% 60.5%, transparent 60.7%),
+      radial-gradient(circle at 50% 50%, transparent 0 66.2%, #ff2e88 66.4% 67.4%, transparent 67.6%),
+      #0e0e12;
   }
   .front .qr {
-    position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
-    width: 62%; aspect-ratio: 1; background: #fff; border-radius: 7%; padding: 3%;
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 50%; aspect-ratio: 1; background: #fff; border-radius: 7%; padding: 3%;
   }
   .front .qr svg { width: 100%; height: 100%; display: block; }
   .front .label {
-    position: absolute; left: 6%; right: 6%; bottom: 5%; text-align: center; color: #fff;
-    font-weight: 800; font-size: calc(var(--s) * .065); line-height: 1.1;
+    position: absolute; left: 22%; right: 22%; bottom: 14.5%; text-align: center; color: #fff; font-family: var(--font);
+    font-weight: 800; font-size: calc(var(--s) * .045); line-height: 1.1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .front .dot { position: absolute; top: 6%; left: 50%; width: 8%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: #ff4f8b; }
+  .front .dot { display: none; }
   .back {
+    font-family: var(--font); color: #0e0e12;
     display: flex; flex-direction: column; align-items: center; justify-content: space-between;
     padding: 9% 7%; text-align: center;
   }
@@ -88,8 +94,8 @@
 <header class="bar">
   <div class="logo" data-appname></div>
   <nav>
-    <a class="btn secondary" href="./">▶ Player</a>
-    <button class="ghost" id="openSettings" aria-label="Settings">⚙</button>
+    <a class="btn secondary small" href="./">Player</a>
+    <button class="icon" id="openSettings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
   </nav>
 </header>
 
@@ -102,11 +108,11 @@
     <h2>1 · Your playlist</h2>
     <div id="loginRow" class="row hidden">
       <p class="muted" style="flex:3;margin:0">Log in with Spotify to load your playlist.</p>
-      <button id="loginBtn">Log in with Spotify</button>
+      <button class="small" id="loginBtn">Log in with Spotify</button>
     </div>
     <div class="row">
       <input id="plUrl" placeholder="Paste a Spotify playlist link: https://open.spotify.com/playlist/…" style="flex:4">
-      <button id="syncBtn">⟳ Update from Spotify</button>
+      <button id="syncBtn" style="flex:0 0 auto">Update from Spotify</button>
     </div>
     <p class="muted" id="plStatus" style="margin:0"></p>
     <p class="note">Add or remove songs in Spotify whenever you like, then press <b>Update</b>: new songs show up here as <span class="badge b-new">NEW</span>,
@@ -126,7 +132,7 @@
       Yellow years look suspicious, so please double-check them. You can edit everything, and it's saved automatically in this browser.</p>
     <div class="row">
       <div class="tabs" id="tabs" style="flex:3"></div>
-      <button class="secondary" id="sortYear">Sort by year</button>
+      <button class="secondary small" id="sortYear">Sort by year</button>
     </div>
     <div class="tablewrap">
       <table>
@@ -136,9 +142,9 @@
     </div>
     <div class="row">
       <span style="flex:3"></span>
-      <button class="secondary" id="removeGone" hidden>Remove songs no longer in playlist</button>
-      <button class="secondary" id="exportCsv">⬇ Download backup</button>
-      <button class="secondary" id="newSet">Start new card set</button>
+      <button class="secondary small" id="removeGone" hidden>Remove songs no longer in playlist</button>
+      <button class="secondary small" id="exportCsv">Download backup</button>
+      <button class="ghost small" id="newSet">Start new card set</button>
     </div>
   </section>
 
@@ -150,7 +156,7 @@
       <label><input type="radio" name="which" value="all"> <span>All cards <b id="nAll"></b></span></label>
     </div>
     <div class="opts">
-      <div><label for="frontText">Text on the QR side</label><input id="frontText" placeholder="Happy Birthday, Alex! 🎉" maxlength="40"></div>
+      <div><label for="frontText">Text on the QR side</label><input id="frontText" placeholder="z. B. Louis-Edition" maxlength="40"></div>
       <div><label for="size">Card size</label>
         <select id="size"><option value="55">55 mm (15 per page)</option><option value="60">60 mm (12 per page)</option><option value="65">65 mm (12 per page)</option></select></div>
       <div><label for="flip">Duplex printing flips on</label>
@@ -158,12 +164,12 @@
     </div>
     <p class="note">Print double-sided at <b>100% / actual size</b> on thick paper, then cut along the dashed lines.
       Can't print double-sided? Print the odd pages, put the stack back in the printer and print the even pages (or glue the two sides together).</p>
-    <button id="printBtn" class="big">🖨 Print cards</button>
+    <button id="printBtn" class="big">Print cards</button>
     <div class="banner hidden" id="markBanner">
       <div class="row">
         <span style="flex:3">Did the cards print OK? Mark them as printed so they won't be printed again next time.</span>
-        <button id="markPrinted">✓ Mark as printed</button>
-        <button class="ghost" id="markLater">Not now</button>
+        <button class="small" id="markPrinted">Mark as printed</button>
+        <button class="ghost small" id="markLater">Not now</button>
       </div>
     </div>
     <details>
@@ -275,7 +281,7 @@
     const added = addSongs(found);
     Object.assign(opts, { playlist: raw, playlistId: id, playlistName: name, synced: Date.now() });
     save();
-    showStatus(added ? `✨ ${added} new song${added > 1 ? 's' : ''}!` : '✓ Up to date, no new songs.', gone);
+    showStatus(added ? `${added} new song${added > 1 ? 's' : ''}` : 'Up to date, no new songs.', gone);
     if (added) { filter = 'new'; render(); }
   }
   function showStatus(prefix = '', gone = songs.filter((s) => s.gone).length) {
@@ -356,7 +362,7 @@
         <td><input data-f="artist" value="${esc(s.artist)}" aria-label="Artist"></td>
         <td><input data-f="title" value="${esc(s.title)}" aria-label="Title"></td>
         <td class="st">${s.gone ? '<span class="badge b-gone">removed</span>' : s.printed ? '<span class="badge b-printed">printed</span>' : '<span class="badge b-new">NEW</span>'}</td>
-        <td class="x"><button class="ghost" data-del title="Delete">✕</button></td>
+        <td class="x"><button class="ghost small" data-del title="Delete" aria-label="Delete">×</button></td>
       </tr>`).join('') || `<tr><td colspan="5" class="muted" style="padding:16px">${songs.length ? 'Nothing here.' : 'No songs yet. Paste your playlist link above and press Update.'}</td></tr>`;
     $('removeGone').hidden = !songs.some((s) => s.gone);
     // print choice
